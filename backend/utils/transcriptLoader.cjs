@@ -1,6 +1,7 @@
 // backend/utils/transcriptLoader.cjs
 const fs = require("fs");
-let pdfParse = require("pdf-parse");
+let pdfParse = require("pdf-parse-fixed");
+if (pdfParse.default) pdfParse = pdfParse.default;
 
 // Handle both module systems (some versions export as { default: fn })
 if (pdfParse.default) {

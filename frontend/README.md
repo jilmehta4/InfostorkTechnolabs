@@ -7,9 +7,9 @@ npm install
 npm run dev
 ```
 
-By default it calls the backend at `http://localhost:3001`.
+By default it calls the backend at `https://infostorktechnolabs.onrender.com`.
 You can override with an `.env` file:
 ```bash
 # .env
-VITE_API_BASE=http://localhost:3001
+VITE_API_BASE=https://infostorktechnolabs.onrender.com
 ```
