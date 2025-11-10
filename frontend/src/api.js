@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001'
+const BASE = import.meta.env.VITE_API_BASE || 'https://infostorktechnolabs.onrender.com'
 
 export async function postChat(prompt) {
   const res = await fetch(`${BASE}/api/chat`, {
