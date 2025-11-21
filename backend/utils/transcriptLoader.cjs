@@ -8,14 +8,50 @@ if (pdfParse.default) {
   pdfParse = pdfParse.default;
 }
 
+// Language mapping: code -> exact filenames and search terms
+const languageFileMap = {
+  en: {
+    exact: ["hisholinessswamiji.pdf"],
+    contains: ["english", "en"]
+  },
+  hi: {
+    exact: [],
+    contains: ["hindi", "hi", "[hindi"]
+  },
+  gu: {
+    exact: ["gujarati.pdf"],
+    contains: ["gujarati", "gu", "[gujarati"]
+  },
+  mr: {
+    exact: ["marathi.pdf"],
+    contains: ["marathi", "mr", "[marathi"]
+  },
+  te: {
+    exact: ["telugu.pdf"],
+    contains: ["telugu", "te", "[telugu"]
+  }
+};
+
+const languageNames = {
+  en: "English",
+  hi: "Hindi",
+  gu: "Gujarati",
+  mr: "Marathi",
+  te: "Telugu"
+};
+
 const cachedTexts = {
   en: "",
-  hi: ""
+  hi: "",
+  gu: "",
+  mr: "",
+  te: ""
 };
 
 async function loadTranscript(language = "en") {
-  // Validate language
-  const lang = language === "hi" ? "hi" : "en";
+  // Validate language - default to English if not supported
+  const supportedLanguages = Object.keys(languageFileMap);
+  const lang = supportedLanguages.includes(language) ? language : "en";
   
   // Return cached if available
   if (cachedTexts[lang]) return cachedTexts[lang];
@@ -24,34 +60,54 @@ async function loadTranscript(language = "en") {
   const files = fs.existsSync(folder) ? fs.readdirSync(folder) : [];
   
   let pdfFile;
-  if (lang === "hi") {
-    // Look for Hindi version
-    pdfFile = files.find(f => 
-      f.toLowerCase().includes("hindi") || 
-      f.toLowerCase().includes("[hindi")
-    );
-  } else {
-    // Look for English version (exclude Hindi)
-    pdfFile = files.find(f => 
-      f.toLowerCase().endsWith(".pdf") && 
-      !f.toLowerCase().includes("hindi") &&
-      !f.toLowerCase().includes("[hindi")
-    );
+  const langConfig = languageFileMap[lang];
+  
+  // First, try to find exact filename matches
+  if (langConfig.exact.length > 0) {
+    pdfFile = files.find(f => {
+      const lower = f.toLowerCase();
+      return langConfig.exact.some(exactName => lower === exactName);
+    });
+  }
+  
+  // If no exact match, try contains search
+  if (!pdfFile && langConfig.contains.length > 0) {
+    pdfFile = files.find(f => {
+      const lower = f.toLowerCase();
+      return lower.endsWith(".pdf") && 
+        langConfig.contains.some(term => lower.includes(term));
+    });
+  }
+  
+  // For English, if still not found, look for files without language indicators
+  if (!pdfFile && lang === "en") {
+    pdfFile = files.find(f => {
+      const lower = f.toLowerCase();
+      return lower.endsWith(".pdf") && 
+        !lower.includes("hindi") && 
+        !lower.includes("gujarati") &&
+        !lower.includes("marathi") &&
+        !lower.includes("telugu") &&
+        !lower.includes("[hindi") &&
+        !lower.includes("[gujarati") &&
+        !lower.includes("[marathi") &&
+        !lower.includes("[telugu");
+    });
   }
 
   if (!pdfFile) {
-    console.warn(`[WARN] No ${lang === "hi" ? "Hindi" : "English"} PDF transcript found in /transcripts folder.`);
+    console.warn(`[WARN] No ${languageNames[lang]} PDF transcript found in /transcripts folder.`);
     return "";
   }
 
-  console.log(`[INFO] Loading ${lang === "hi" ? "Hindi" : "English"} transcript from ${pdfFile} ...`);
+  console.log(`[INFO] Loading ${languageNames[lang]} transcript from ${pdfFile} ...`);
   const dataBuffer = fs.readFileSync(`${folder}/${pdfFile}`);
 
   // ✅ robust version handles all exports properly
   const pdfData = await pdfParse(dataBuffer);
   cachedTexts[lang] = pdfData.text.replace(/\s+/g, " ").trim();
 
-  console.log(`[OK] ${lang === "hi" ? "Hindi" : "English"} transcript loaded (${cachedTexts[lang].length} characters).`);
+  console.log(`[OK] ${languageNames[lang]} transcript loaded (${cachedTexts[lang].length} characters).`);
   return cachedTexts[lang];
 }
 
