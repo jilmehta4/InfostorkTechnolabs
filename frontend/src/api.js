@@ -1,10 +1,10 @@
 const BASE = import.meta.env.VITE_API_BASE || 'https://infostorktechnolabs.onrender.com'
 
-export async function postChat(prompt) {
+export async function postChat(prompt, language = 'en') {
   const res = await fetch(`${BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt })
+    body: JSON.stringify({ prompt, language })
   })
   if (!res.ok) {
     throw new Error('Server error')

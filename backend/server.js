@@ -16,32 +16,43 @@ app.use(express.json());
 const port = process.env.PORT || 3001;
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Load transcript once at startup
-let transcriptText = "";
+// Load transcripts once at startup
+let transcriptTexts = {
+  en: "",
+  hi: ""
+};
 
-async function initTranscript() {
+async function initTranscripts() {
   try {
-    transcriptText = await loadTranscript();
+    transcriptTexts.en = await loadTranscript("en");
+    transcriptTexts.hi = await loadTranscript("hi");
   } catch (err) {
-    console.error("[ERROR] Unable to load transcript:", err.message);
+    console.error("[ERROR] Unable to load transcripts:", err.message);
   }
 }
 
-await initTranscript();
+await initTranscripts();
 
 // --- Chat Route ---
 app.post("/api/chat", async (req, res) => {
   try {
-    const { prompt } = req.body || {};
+    const { prompt, language = "en" } = req.body || {};
     if (!prompt || !prompt.trim()) {
       return res.status(400).json({ error: "Missing prompt" });
     }
 
-    console.log(`[INFO] /api/chat ${new Date().toISOString()} prompt: ${prompt.slice(0, 80)}...`);
+    const lang = language === "hi" ? "hi" : "en";
+    const transcriptText = transcriptTexts[lang];
+
+    console.log(`[INFO] /api/chat ${new Date().toISOString()} [${lang.toUpperCase()}] prompt: ${prompt.slice(0, 80)}...`);
 
     const systemPrompt = transcriptText
-      ? "You are an AI trained to answer only using the provided transcript of His Holiness Swamiji. Use the text to summarize or respond factually."
-      : "You are a helpful assistant.";
+      ? lang === "hi"
+        ? "आप एक AI हैं जो केवल प्रदान किए गए स्वामीजी के ट्रांसक्रिप्ट का उपयोग करके उत्तर देने के लिए प्रशिक्षित हैं। पाठ का उपयोग करके तथ्यात्मक रूप से सारांश या उत्तर दें। हमेशा हिंदी में उत्तर दें।"
+        : "You are an AI trained to answer only using the provided transcript of His Holiness Swamiji. Use the text to summarize or respond factually. Always respond in English."
+      : lang === "hi"
+        ? "आप एक सहायक सहायक हैं। हमेशा हिंदी में उत्तर दें।"
+        : "You are a helpful assistant. Always respond in English.";
 
     const userMessage = transcriptText
       ? `Transcript:\n${transcriptText.slice(0, 12000)}\n\nQuestion: ${prompt}`
@@ -57,7 +68,7 @@ app.post("/api/chat", async (req, res) => {
       max_tokens: 500
     });
 
-    const answer = completion.choices?.[0]?.message?.content ?? "No answer generated.";
+    const answer = completion.choices?.[0]?.message?.content ?? (lang === "hi" ? "कोई उत्तर उत्पन्न नहीं हुआ।" : "No answer generated.");
     res.json({ answer });
   } catch (err) {
     console.error("[ERROR] /api/chat", err);
@@ -68,8 +79,13 @@ app.post("/api/chat", async (req, res) => {
 // --- Reload Transcript Route ---
 app.post("/api/reload-transcript", async (req, res) => {
   try {
-    transcriptText = await loadTranscript();
-    res.json({ success: true, message: "Transcript reloaded successfully." });
+    const { language = "en" } = req.body || {};
+    const lang = language === "hi" ? "hi" : "en";
+    transcriptTexts[lang] = await loadTranscript(lang);
+    res.json({ 
+      success: true, 
+      message: `${lang === "hi" ? "Hindi" : "English"} transcript reloaded successfully.` 
+    });
   } catch (err) {
     console.error("[ERROR] Reload transcript:", err);
     res.status(500).json({ success: false, message: err.message });
